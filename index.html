@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+
+<html lang="hi">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Ludo Maharaja</title>
+
+<style>
+
+*{box-sizing:border-box}
+
+body{margin:0;background:#160d08;color:#f8df9b;font-family:Arial;text-align:center}
+
+header{padding:18px;background:linear-gradient(120deg,#321500,#a66b12,#321500);color:#ffe5a0}
+
+h1{margin:5px;font-size:29px}
+
+.sub{font-size:12px;letter-spacing:3px}
+
+.game{max-width:570px;margin:auto;padding:12px}
+
+#board{width:100%;background:#f6e4bd;border:7px solid #bd8b32;border-radius:18px;box-shadow:0 0 25px #bd8b32}
+
+button{border:0;border-radius:12px;padding:13px 24px;font-size:17px;font-weight:bold;cursor:pointer}
+
+#roll{background:linear-gradient(120deg,#ffe49a,#d69a27);color:#301900;margin:12px}
+
+#dice{font-size:48px;margin:5px}
+
+#status{background:#38200e;padding:13px;border:1px solid #c99a42;border-radius:12px;margin:10px 0}
+
+.players{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.player{padding:10px;border-radius:9px;background:#302015}
+
+.red{color:#ff5555}.green{color:#35d77d}.yellow{color:#ffd64b}.blue{color:#59aaff}
+
+.note{font-size:12px;color:#d8c5a5;margin:15px}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+ <div class="sub">ROYAL GOLD PREMIUM</div>
+
+ <h1>👑 LUDO MAHARAJA 👑</h1>
+
+ <div>THE ROYAL GAME</div>
+
+</header>
+
+<div class="game">
+
+ <div id="status">लाल खिलाड़ी की बारी है। पासा चलाएँ!</div>
+
+ <svg id="board" viewBox="0 0 600 600"></svg>
+
+ <div id="dice">🎲</div>
+
+ <button id="roll" onclick="rollDice()">पासा चलाएँ</button>
+
+ <div class="players">
+
+  <div class="player red">🔴 लाल खिलाड़ी</div>
+
+  <div class="player green">🟢 हरा खिलाड़ी</div>
+
+  <div class="player yellow">🟡 पीला खिलाड़ी</div>
+
+  <div class="player blue">🔵 नीला खिलाड़ी</div>
+
+ </div>
+
+ <div class="note">6 आने पर गोटी बाहर निकलेगी। अपनी गोटी पर टैप करके चलाएँ। सभी चार गोटियाँ घर पहुँचाने वाला विजेता होगा।</div>
+
+ <button onclick="location.reload()">नया गेम शुरू करें ↻</button>
+
+</div>
+
+<script>
+
+const svg=document.getElementById('board');
+
+const colors=['#e53935','#19a95b','#e9b91c','#287bd5'];
+
+const names=['लाल','हरा','पीला','नीला'];
+
+const starts=[0,13,26,39];
+
+const safe=[0,8,13,21,26,34,39,47];
+
+const diceFaces=['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+let pieces=Array.from({length:4},()=>[-1,-1,-1,-1]);
+
+let turn=0,dice=0,rolled=false,finished=false;
+
+const center={x:300,y:300};
+
+const path=[];
+
+for(let i=0;i<52;i++){
+
+ let a=(-90+i*360/52)*Math.PI/180;
+
+ path.push({x:300+210*Math.cos(a),y:300+210*Math.sin(a)});
+
+}
+
+function circle(x,y,r,fill,stroke='#fff',sw=2){
+
+ return `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+
+}
+
+function draw(){
+
+ let s='';
+
+ s+=`<rect x="4" y="4" width="592" height="592" rx="20" fill="#f6e4bd"/>`;
+
+ const yards=[
+
+ [35,35],[365,35],[365,365],[35,365]
+
+ ];
+
+ yards.forEach((p,i)=>{
+
+ s+=`<rect x="${p[0]}" y="${p[1]}" width="200" height="200" rx="20" fill="${colors[i]}" opacity=".85" stroke="#75440c" stroke-width="5"/>`;
+
+ s+=`<rect x="${p[0]+27}" y="${p[1]+27}" width="146" height="146" rx="18" fill="#fff4d7"/>`;
+
+ for(let j=0;j<4;j++){
+
+ let x=p[0]+65+(j%2)*70,y=p[1]+65+Math.floor(j/2)*70;
+
+ s+=circle(x,y,19,colors[i],'#75440c',3);
+
+ }
+
+ });
+
+ path.forEach((p,i)=>{
+
+ s+=circle(p.x,p.y,13,safe.includes(i)?'#f6d36c':'#fffaf0','#8a602b',2);
+
+ });
+
+ // Center royal home
+
+ s+=`<circle cx="300" cy="300" r="48" fill="#9b6515" stroke="#593609" stroke-width="5"/>`;
+
+ s+=`<text x="300" y="309" text-anchor="middle" font-size="30">👑</text>`;
+
+ pieces.forEach((arr,player)=>{
+
+ arr.forEach((step,id)=>{
+
+ let x,y;
+
+ if(step===-1){
+
+ let base=yards[player];
+
+ x=base[0]+65+(id%2)*70;
+
+ y=base[1]+65+Math.floor(id/2)*70;
+
+ }else if(step<52){
+
+ let index=(starts[player]+step)%52;
+
+ x=path[index].x;y=path[index].y;
+
+ }else if(step<57){
+
+ let a=(-90+starts[player]*360/52)*Math.PI/180;
+
+ let r=210-(step-51)*35;
+
+ x=300+r*Math.cos(a);y=300+r*Math.sin(a);
+
+ }else{x=300;y=300;}
+
+ s+=circle(x,y,step===57?12:15,colors[player],'#fff',3);
+
+ s+=`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="12" fill="white" font-weight="bold">${id+1}</text>`;
+
+ if(player===turn && rolled && !finished && (step===-1?dice===6:step+dice<=57)){
+
+ s+=`<circle cx="${x}" cy="${y}" r="21" fill="none" stroke="#e2a827" stroke-width="3" stroke-dasharray="4 3"/>`;
+
+ }
+
+ });
+
+ });
+
+ svg.innerHTML=s;
+
+}
+
+function message(t){document.getElementById('status').textContent=t;}
+
+function rollDice(){
+
+ if(rolled||finished)return;
+
+ dice=Math.floor(Math.random()*6)+1;
+
+ document.getElementById('dice').textContent=diceFaces[dice-1];
+
+ rolled=true;
+
+ let possible=pieces[turn].some(v=>v===-1?dice===6:v+dice<=57);
+
+ if(!possible){
+
+  message(names[turn]+' खिलाड़ी को चाल नहीं मिली।');
+
+  setTimeout(nextTurn,1000);
+
+ }else{
+
+  message(names[turn]+' खिलाड़ी को '+dice+' आया। अपनी चमकती गोटी चुनें।');
+
+ }
+
+ draw();
+
+}
+
+svg.addEventListener('click',e=>{
+
+ if(!rolled||finished)return;
+
+ let target=e.target.closest('circle');
+
+ if(!target)return;
+
+ let x=Number(target.getAttribute('cx')),y=Number(target.getAttribute('cy'));
+
+ let chosen=-1,best=100;
+
+ pieces[turn].forEach((step,id)=>{
+
+ if(step===57)return;
+
+ let px,py;
+
+ if(step===-1){
+
+ let b=yards[turn];px=b[0]+65+(id%2)*70;py=b[1]+65+Math.floor(id/2)*70;
+
+ }else if(step<52){
+
+ let p=path[(starts[turn]+step)%52];px=p.x;py=p.y;
+
+ }else{
+
+ let a=(-90+starts[turn]*360/52)*Math.PI/180;
+
+ let r=210-(step-51)*35;px=300+r*Math.cos(a);py=300+r*Math.sin(a);
+
+ }
+
+ let d=Math.hypot(x-px,y-py);
+
+ if(d<best){best=d;chosen=id;}
+
+ });
+
+ if(chosen<0||best>27)return;
+
+ let old=pieces[turn][chosen];
+
+ if(old===-1){
+
+  if(dice!==6)return;
+
+  pieces[turn][chosen]=0;
+
+ }else{
+
+  if(old+dice>57)return;
+
+  pieces[turn][chosen]=old+dice;
+
+ }
+
+ let now=pieces[turn][chosen];
+
+ if(now<52){
+
+  let landed=(starts[turn]+now)%52;
+
+  if(!safe.includes(landed)){
+
+   for(let p=0;p<4;p++)if(p!==turn){
+
+    pieces[p]=pieces[p].map(v=>{
+
+     if(v>=0&&v<52&&(starts[p]+v)%52===landed)return -1;
+
+     return v;
+
+    });
+
+   }
+
+  }
+
+ }
+
+ if(pieces[turn].every(v=>v===57)){
+
+  finished=true;message('👑 '+names[turn]+' खिलाड़ी LUDO MAHARAJA का विजेता है! 👑');
+
+ }else if(dice===6||now===57){
+
+  message(names[turn]+' खिलाड़ी को एक और मौका मिला!');
+
+ }else{
+
+  nextTurn();return;
+
+ }
+
+ rolled=false;draw();
+
+});
+
+function nextTurn(){
+
+ rolled=false;dice=0;turn=(turn+1)%4;
+
+ document.getElementById('dice').textContent='🎲';
+
+ message(names[turn]+' खिलाड़ी की बारी है। पासा चलाएँ!');
+
+ draw();
+
+}
+
+draw();
+
+</script>
+
+</body>
+
+</html>
